@@ -1,0 +1,110 @@
+name: lakehouse
+
+services:
+  floci:
+    image: floci/floci:latest
+    ports:
+      - "4566:4566"
+    volumes:
+      - floci-data:/app/data
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health > /dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  bucket-setup:
+    image: amazon/aws-cli:2.34.48
+    depends_on:
+      floci:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://floci:4566
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Esperando a que Floci este listo..."
+        for i in $$(seq 1 30); do
+          if aws s3 ls > /dev/null 2>&1; then
+            break
+          fi
+          echo "Intento $$i: Floci no disponible, esperando 2s..."
+          sleep 2
+        done
+        echo "Creando bucket lakehouse..."
+        if aws s3 mb s3://lakehouse 2>&1; then
+          echo "Bucket 'lakehouse' creado exitosamente."
+        else
+          echo "El bucket 'lakehouse' ya existe o hubo un error."
+        fi
+        echo "Buckets disponibles:"
+        aws s3 ls
+
+  polaris:
+    image: apache/polaris:latest
+    ports:
+      - "8181:8181"
+      - "8182:8182"
+    depends_on:
+      bucket-setup:
+        condition: service_completed_successfully
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      POLARIS_BOOTSTRAP_CREDENTIALS: POLARIS,root,s3cr3t
+      quarkus.otel.sdk.disabled: "true"
+      POLARIS_FEATURES_SKIP__CREDENTIAL__SUBSCOPING__INDIRECTION: "true"
+      POLARIS_FEATURES_ALLOW__EXTERNAL__CATALOG__CREDENTIAL__VENDING: "false"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8182/q/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 15s
+
+  polaris-setup:
+    image: alpine/curl:8.19.0
+    depends_on:
+      polaris:
+        condition: service_healthy
+    environment:
+      ROOT_CLIENT_ID: root
+      ROOT_CLIENT_SECRET: s3cr3t
+      REALM: POLARIS
+    volumes:
+      - ./scripts/bootstrap-polaris.sh:/bootstrap.sh
+    entrypoint: ["/bin/sh", "/bootstrap.sh"]
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/polaris-setup-done"]
+      interval: 1s
+      timeout: 10s
+      retries: 300
+      start_period: 1s
+
+  trino:
+    image: trinodb/trino:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino/catalog:/etc/trino/catalog
+    depends_on:
+      polaris-setup:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "trino", "--execute", "SELECT 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  floci-data:
