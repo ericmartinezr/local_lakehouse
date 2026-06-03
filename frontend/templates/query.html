@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Consultas SQL</h1>
+
+<div style="margin-bottom:8px">
+  <label>Schema: <select id="schemaSelect"><option value="">-- seleccionar --</option></select></label>
+  <label>Tabla: <select id="tableSelect"><option value="">-- seleccionar --</option></select></label>
+</div>
+
+<textarea id="sql" rows="6" style="width:100%;font-family:monospace;box-sizing:border-box">SELECT * FROM iceberg.demo.ventas</textarea>
+<div style="margin:8px 0">
+  <button onclick="runQuery()">Ejecutar</button>
+  <button onclick="document.getElementById('sql').value='';document.getElementById('result').innerHTML=''">Limpiar</button>
+  <span id="spinner" class="muted" style="display:none">Ejecutando...</span>
+</div>
+<div id="result"></div>
+
+<script>
+async function loadSchemas() {
+  const r = await fetch('/api/schemas');
+  const schemas = await r.json();
+  const sel = document.getElementById('schemaSelect');
+  for (const s of schemas) {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  }
+}
+async function loadTables(schema) {
+  const r = await fetch('/api/tables?schema=' + encodeURIComponent(schema));
+  const tables = await r.json();
+  const sel = document.getElementById('tableSelect');
+  sel.innerHTML = '<option value="">-- seleccionar --</option>';
+  for (const t of tables) {
+    const opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    sel.appendChild(opt);
+  }
+}
+document.getElementById('schemaSelect').onchange = function() {
+  if (this.value) loadTables(this.value);
+};
+document.getElementById('tableSelect').onchange = function() {
+  if (this.value) {
+    const schema = document.getElementById('schemaSelect').value;
+    document.getElementById('sql').value = `SELECT * FROM iceberg.${schema}.${this.value} LIMIT 100`;
+  }
+};
+
+async function runQuery() {
+  const sql = document.getElementById('sql').value.trim();
+  if (!sql) return;
+  const resultDiv = document.getElementById('result');
+  const spinner = document.getElementById('spinner');
+  resultDiv.innerHTML = '';
+  spinner.style.display = 'inline';
+  const r = await fetch('/api/query', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sql})});
+  const j = await r.json();
+  spinner.style.display = 'none';
+  if (j.error) {
+    resultDiv.innerHTML = '<pre class="error">' + j.error + '</pre>';
+    return;
+  }
+  if (j.columns) {
+    let html = '<table><thead><tr>';
+    for (const c of j.columns) html += '<th>' + c + '</th>';
+    html += '</tr></thead><tbody>';
+    for (const row of j.rows) {
+      html += '<tr>';
+      for (const cell of row) html += '<td>' + (cell === null ? '<span class="muted">NULL</span>' : cell) + '</td>';
+      html += '</tr>';
+    }
+    html += '</tbody></table>';
+    if (j.rows.length === 0) html = '<p class="muted">0 filas</p>';
+    else html += '<p class="muted">' + j.rows.length + ' fila(s)</p>';
+    resultDiv.innerHTML = html;
+  } else if (j.rows_affected !== undefined) {
+    resultDiv.innerHTML = '<p class="info">Consulta ejecutada. Filas afectadas: ' + j.rows_affected + '</p>';
+  }
+}
+
+loadSchemas();
+</script>
+{% endblock %}

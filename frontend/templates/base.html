@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Lakehouse Local{% endblock %}</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;padding:0}
+nav{background:#f5f5f5;padding:10px 20px;border-bottom:1px solid #ddd}
+nav a{margin-right:16px;color:#333;text-decoration:none;font-weight:500}
+nav a:hover{text-decoration:underline}
+.content{padding:20px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #ddd}
+th{background:#f0f0f0}
+tr:hover{background:#f9f9f9}
+textarea{font-family:monospace;width:100%;box-sizing:border-box}
+button{padding:6px 16px;cursor:pointer}
+.error{color:#c00;white-space:pre-wrap}
+.info{color:#070}
+.muted{color:#666;font-size:0.85em}
+.tree ul{list-style:none;padding-left:20px;margin:4px 0}
+.tree li{padding:1px 0}
+.tree summary{cursor:pointer;padding:2px 0}
+.tree summary:hover{background:#f0f0f0}
+.tree .file{padding:2px 0 2px 20px}
+.tree .file a{margin-left:4px}
+</style>
+</head>
+<body>
+<nav>
+  <a href="/">Inicio</a>
+  <a href="/upload">Subir</a>
+  <a href="/files">Archivos</a>
+  <a href="/query">Consultas</a>
+</nav>
+<div class="content">{% block content %}{% endblock %}</div>
+</body>
+</html>

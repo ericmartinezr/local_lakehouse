@@ -1,6 +1,6 @@
 # Lakehouse Local con Floci, Apache Iceberg, DuckDB y Trino
 
-## Que es un Lakehouse?
+## ¿Qué es un Lakehouse?
 
 Un **data lakehouse** combina la flexibilidad de un data lake (almacenamiento de datos en
 formatos abiertos como Parquet) con las capacidades de gestion de un data warehouse
@@ -39,6 +39,7 @@ como para analitica empresarial y BI.
 ## Componentes y por que cada uno
 
 ### Floci (`floci/floci:latest`)
+
 - **Rol:** Almacenamiento de objetos compatible con S3
 - **Que hace:** Actua como un bucket S3 local donde Iceberg guarda los archivos de datos
   (Parquet) y los archivos de metadatos (manifestos, snapshots). Floci es un emulador de
@@ -48,6 +49,7 @@ como para analitica empresarial y BI.
 - **Credenciales:** `test` / `test`
 
 ### Apache Iceberg
+
 - **Rol:** Formato de tabla abierto para lagos de datos
 - **Que hace:** Agrega capacidades de base de datos relacional a archivos Parquet:
   transacciones ACID, evolucion de esquema, time travel (viajes en el tiempo), particionado
@@ -58,6 +60,7 @@ como para analitica empresarial y BI.
   En esta pila usamos Apache Polaris.
 
 ### Apache Polaris (`apache/polaris:latest`)
+
 - **Rol:** Catalogo Iceberg REST
 - **Que hace:** Implementa la especificacion de API REST de Iceberg, permitiendo que
   multiples motores (Trino, DuckDB, Spark, Flink) compartan las mismas tablas Iceberg sin
@@ -71,6 +74,7 @@ como para analitica empresarial y BI.
 - **Credenciales usuario:** Auto-generadas al iniciar (para DuckDB)
 
 ### DuckDB
+
 - **Rol:** Base de datos analitica embebida
 - **Que hace:** Motor SQL que se ejecuta en el mismo proceso, sin necesidad de servidor.
   Ideal para analitica exploratoria, transformacion de datos y pruebas locales. Con la
@@ -80,6 +84,7 @@ como para analitica empresarial y BI.
 - **Extensiones necesarias:** `iceberg`, `httpfs`
 
 ### Trino (`trinodb/trino:latest`)
+
 - **Rol:** Motor de consultas SQL distribuido
 - **Que hace:** Permite consultar datos desde multiples fuentes (Iceberg, MySQL, Kafka,
   etc.) con SQL estandar. En esta pila actua como el "servidor SQL" del lakehouse,
@@ -139,13 +144,13 @@ duckdb
 
 ## URLs de acceso
 
-| Servicio        | URL                                       |
-|-----------------|-------------------------------------------|
-| Trino UI        | http://localhost:8080                      |
-| Trino JDBC      | `jdbc:trino://localhost:8080`              |
-| Polaris REST    | http://localhost:8181/api/catalog/v1       |
-| Polaris Mgmt    | http://localhost:8181/api/management/v1    |
-| Floci S3        | http://localhost:4566                      |
+| Servicio     | URL                                     |
+| ------------ | --------------------------------------- |
+| Trino UI     | http://localhost:8080                   |
+| Trino JDBC   | `jdbc:trino://localhost:8080`           |
+| Polaris REST | http://localhost:8181/api/catalog/v1    |
+| Polaris Mgmt | http://localhost:8181/api/management/v1 |
+| Floci S3     | http://localhost:4566                   |
 
 ## Credenciales
 
@@ -156,6 +161,7 @@ docker compose logs polaris-setup | grep -A2 "Credenciales"
 ```
 
 **Root (usadas internamente por Trino):**
+
 ```
 Client ID:     root
 Client Secret: s3cr3t
@@ -163,6 +169,7 @@ Client Secret: s3cr3t
 
 **Usuario (para tus consultas desde DuckDB):**
 Se generan aleatoriamente en cada `docker compose up`. Busca en los logs:
+
 ```
 Client ID:     <lakehouse_user>
 Client Secret: <auto-generado>
@@ -213,9 +220,8 @@ CREATE SCHEMA IF NOT EXISTS iceberg.demo;
 
 -- Crear tabla desde una consulta
 CREATE TABLE iceberg.demo.numeros AS
-SELECT n, n * 2 AS doble FROM (
-  SELECT GENERATE_SERIES(1, 10) AS n
-);
+SELECT n, n * 2 AS doble
+FROM UNNEST(SEQUENCE(1, 10)) AS t(n);
 
 -- Consultar
 SELECT * FROM iceberg.demo.numeros;
@@ -335,6 +341,7 @@ DuckDB (host)
 ## Solucion de problemas
 
 ### El contenedor Floci no arranca
+
 ```bash
 docker compose logs floci
 # Verificar que el puerto 4566 no esta ocupado
@@ -342,6 +349,7 @@ sudo lsof -i :4566
 ```
 
 ### Polaris no responde
+
 ```bash
 # Verificar salud
 curl http://localhost:8182/q/health
@@ -351,6 +359,7 @@ docker compose logs polaris
 ```
 
 ### Trino no encuentra tablas
+
 ```bash
 # Verificar que polaris-setup termino
 docker compose logs polaris-setup | tail -5
@@ -360,6 +369,7 @@ docker compose exec trino cat /etc/trino/catalog/iceberg.properties
 ```
 
 ### DuckDB no se conecta a Polaris
+
 ```bash
 # Verificar que Polaris esta accesible desde el host
 curl -s http://localhost:8181/api/catalog/v1/oauth/tokens \
@@ -370,6 +380,7 @@ curl -s http://localhost:8181/api/catalog/v1/oauth/tokens \
 ```
 
 ### No encuentro las credenciales de usuario
+
 ```bash
 docker compose logs polaris-setup | grep -E "(Client ID|Client Secret)"
 ```
@@ -405,4 +416,5 @@ local-lakehouse/
 
 ---
 
-*Este proyecto fue generado con asistencia de inteligencia artificial (IA).*
+_Este proyecto fue generado con asistencia de inteligencia artificial (IA).
+Verifica y valida la configuracion antes de usarlo en produccion._

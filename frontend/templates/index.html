@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Lakehouse Local</h1>
+<p>Floci + Apache Polaris + Apache Iceberg + Trino + DuckDB</p>
+<ul>
+  <li><a href="/upload">Subir archivos</a> al lakehouse</li>
+  <li><a href="/files">Ver archivos</a> en Floci S3</li>
+  <li><a href="/query">Consultas SQL</a> via Trino</li>
+</ul>
+<h3>Enlaces directos</h3>
+<ul>
+  <li><a href="http://localhost:8080" target="_blank">Trino UI</a> (puerto 8080)</li>
+  <li><a href="http://localhost:8181/api/catalog/v1" target="_blank">Polaris REST</a> (puerto 8181)</li>
+  <li><a href="http://localhost:4566" target="_blank">Floci S3</a> (puerto 4566)</li>
+</ul>
+{% endblock %}

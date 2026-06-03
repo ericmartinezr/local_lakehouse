@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Subir archivo</h1>
+<form id="uploadForm" enctype="multipart/form-data">
+  <input type="file" id="fileInput" name="file" required>
+  <button type="submit">Subir</button>
+</form>
+<p id="uploadStatus"></p>
+<hr>
+<h2>Archivos en el lakehouse</h2>
+<div id="tree" class="tree"></div>
+
+<script>
+function fmt(byte) {
+  if (byte < 1024) return byte + ' B';
+  if (byte < 1048576) return (byte / 1024).toFixed(1) + ' KB';
+  return (byte / 1048576).toFixed(1) + ' MB';
+}
+
+function icon(key) {
+  if (key.endsWith('.parquet')) return '&#x1F5C2;&#xFE0F;';
+  if (key.endsWith('.avro')) return '&#x1F4CB;';
+  if (key.endsWith('.json')) return '&#x1F4DD;';
+  if (key.endsWith('.stats')) return '&#x1F4CA;';
+  return '&#x1F4C4;';
+}
+
+function countFiles(node) {
+  let c = node.files.length;
+  for (const k of Object.keys(node.children)) c += countFiles(node.children[k]);
+  return c;
+}
+
+function render(node) {
+  const folders = Object.keys(node.children).sort();
+  const sortedFiles = [...node.files].sort((a, b) => a.key.localeCompare(b.key));
+  let html = '<ul>';
+  for (const name of folders) {
+    const child = node.children[name];
+    const nf = countFiles(child);
+    html += `<li><details><summary>&#x1F4C1; <b>${name}</b> <span class="muted">(${nf} archivos, ${fmt(child.size)})</span></summary>${render(child)}</details></li>`;
+  }
+  for (const f of sortedFiles) {
+    const fn = f.key.split('/').pop();
+    html += `<li class="file">${icon(f.key)} ${fn} <span class="muted">(${fmt(f.size)})</span> <a href="/api/files/${encodeURIComponent(f.key)}">descargar</a></li>`;
+  }
+  html += '</ul>';
+  return html;
+}
+
+function buildTree(files) {
+  const root = { children: {}, files: [] };
+  for (const f of files) {
+    const parts = f.key.split('/');
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!node.children[parts[i]])
+        node.children[parts[i]] = { children: {}, files: [], size: 0 };
+      node = node.children[parts[i]];
+    }
+    node.size += f.size;
+    node.files.push(f);
+  }
+  return root;
+}
+
+async function loadFiles() {
+  const r = await fetch('/api/files');
+  const files = await r.json();
+  document.getElementById('tree').innerHTML = render(buildTree(files));
+}
+
+document.getElementById('uploadForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const status = document.getElementById('uploadStatus');
+  const fd = new FormData(e.target);
+  status.textContent = 'Subiendo...';
+  status.className = '';
+  const r = await fetch('/api/upload', {method:'POST', body:fd});
+  const j = await r.json();
+  if (j.error) {
+    status.textContent = 'Error: ' + j.error;
+    status.className = 'error';
+  } else {
+    status.textContent = 'Archivo subido: ' + j.key;
+    status.className = 'info';
+    document.getElementById('fileInput').value = '';
+    loadFiles();
+  }
+};
+
+loadFiles();
+</script>
+{% endblock %}
