@@ -27,13 +27,14 @@ como para analitica empresarial y BI.
   |  snapshots, permisos. Implementa la API REST      |
   |  de Iceberg para interoperabilidad multi-engine   |
   +-----------------------+--------------------------+
-                          |
-  +--------------------------------------------------+
-  |   Floci (AWS S3 emulado)  |  Apache Iceberg       |
-  |   Almacenamiento de       |  Formato de tabla     |
-  |   archivos Parquet y      |  ACID, time travel,   |
-  |   metadatos Iceberg       |  evolucion esquemas   |
-  +---------------------------+----------------------+
+         |                              |
+         v                              v
+  +------------------+    +----------------------------+
+  |   PostgreSQL     |    | Floci (AWS S3 emulado)     |
+  |  Config. de      |    | Archivos Parquet y         |
+  |  Polaris (roles, |    | metadatos Iceberg          |
+  |  catalogos, ...) |    | ACID, time travel, ...     |
+  +------------------+    +----------------------------+
 ```
 
 ## Componentes y por que cada uno
@@ -44,7 +45,6 @@ como para analitica empresarial y BI.
 - **Que hace:** Actua como un bucket S3 local donde Iceberg guarda los archivos de datos
   (Parquet) y los archivos de metadatos (manifestos, snapshots). Floci es un emulador de
   AWS gratuito, rapido y sin necesidad de cuenta.
-- **Alternativa:** MinIO (mas usado en produccion, interfaz web incluida)
 - **Puerto:** 4566
 - **Credenciales:** `test` / `test`
 
@@ -72,6 +72,17 @@ como para analitica empresarial y BI.
 - **Puertos:** 8181 (API REST), 8182 (health check y metricas)
 - **Credenciales root:** `root` / `s3cr3t` (uso interno para Trino)
 - **Credenciales usuario:** Auto-generadas al iniciar (para DuckDB)
+- **Persistencia:** PostgreSQL (`polaris`/`polaris` en `polaris-db` volume)
+
+### PostgreSQL (`postgres:16`)
+
+- **Rol:** Base de datos persistente para Polaris
+- **Que hace:** Almacena toda la configuracion del catalogo Polaris (catalogos,
+  principales, roles, permisos) de forma permanente. Al usar PostgreSQL en lugar de
+  memoria, la configuracion sobrevive a reinicios del contenedor.
+- **Puerto:** 5432
+- **Credenciales:** `polaris` / `polaris` (database: `polaris`)
+- **Persistencia:** Volumen Docker `polaris-db`
 
 ### Polaris Console (`apache/polaris-console:latest`)
 
@@ -120,7 +131,7 @@ como para analitica empresarial y BI.
   ```bash
   curl https://install.duckdb.org | sh
   ```
-- Puerto 4566, 8080, 8181 libres en tu maquina
+- Puertos 4566, 5432, 8080, 8181 libres en tu maquina
 
 ## Inicio rapido
 
@@ -154,14 +165,15 @@ duckdb
 
 ## URLs de acceso
 
-| Servicio     | URL                                     |
-| ------------ | --------------------------------------- |
-| Trino UI     | http://localhost:8080                   |
-| Trino JDBC   | `jdbc:trino://localhost:8080`           |
-| Polaris REST | http://localhost:8181/api/catalog/v1    |
-| Polaris Mgmt | http://localhost:8181/api/management/v1 |
-| Floci S3     | http://localhost:4566                   |
-| Polaris Console | http://localhost:4000                |
+| Servicio        | URL                                     |
+| --------------- | --------------------------------------- |
+| Trino UI        | http://localhost:8080                   |
+| Trino JDBC      | `jdbc:trino://localhost:8080`           |
+| Polaris REST    | http://localhost:8181/api/catalog/v1    |
+| Polaris Mgmt    | http://localhost:8181/api/management/v1 |
+| Floci S3        | http://localhost:4566                   |
+| PostgreSQL      | localhost:5432 (database: `polaris`)    |
+| Polaris Console | http://localhost:4000                   |
 
 ## Credenciales
 
@@ -188,11 +200,11 @@ Realm:         POLARIS
 ```
 
 **Usuario (para tus consultas desde DuckDB):**
-Se generan aleatoriamente en cada `docker compose up`. Busca en los logs:
+Se generan en el primer inicio y persisten en PostgreSQL. Busca en los logs del primer `docker compose up`:
 
 ```
-Client ID:     <lakehouse_user>
-Client Secret: <auto-generado>
+Client ID:     lakehouse_user
+Client Secret: <auto-generado-en-el-primer-inicio>
 ```
 
 ## Deteniendo el proyecto
@@ -204,7 +216,7 @@ docker compose stop
 # Detener y borrar los contenedores (los datos persisten en volumes)
 docker compose down
 
-# Detener y borrar TODO (incluye datos de Floci y config de Polaris)
+# Detener y borrar TODO (incluye datos de Floci y config de Polaris en PostgreSQL)
 docker compose down -v
 ```
 
@@ -424,15 +436,13 @@ local-lakehouse/
 
 - **Floci** almacena datos en un volumen Docker (`floci-data`). Los datos persisten entre
   reinicios a menos que uses `docker compose down -v`.
-- **Polaris** en esta configuracion usa almacenamiento en memoria. Al reiniciar el
-  contenedor, se pierde la configuracion del catalogo (pero NO los datos en Floci).
-  El script `polaris-setup` re-crea el catalogo automaticamente.
+- **Polaris** persiste su configuracion (catalogos, principales, roles, permisos) en
+  PostgreSQL mediante el volumen `polaris-db`. La configuracion sobrevive a reinicios del
+  contenedor. El script `polaris-setup` es idempotente y solo crea los recursos si no existen.
 - **Trino** no tiene almacenamiento propio; toda la configuracion se define en
   `trino/catalog/iceberg.properties`.
 - **DuckDB** no corre como servicio, se ejecuta bajo demanda desde tu terminal.
 - Los puertos expuestos (4566, 8080, 8181) son accesibles desde tu maquina host.
-- Para un entorno productivo, considera usar MinIO en lugar de Floci para S3,
-  y agregar PostgreSQL como backend persistente para Polaris.
 
 ---
 
