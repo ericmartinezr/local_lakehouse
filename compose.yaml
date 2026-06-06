@@ -64,6 +64,12 @@ services:
       quarkus.otel.sdk.disabled: "true"
       POLARIS_FEATURES_SKIP__CREDENTIAL__SUBSCOPING__INDIRECTION: "true"
       POLARIS_FEATURES_ALLOW__EXTERNAL__CATALOG__CREDENTIAL__VENDING: "false"
+      QUARKUS_HTTP_CORS_ENABLED: "true"
+      QUARKUS_HTTP_CORS_ORIGINS: "*"
+      QUARKUS_HTTP_CORS_METHODS: GET,POST,PUT,DELETE,PATCH,OPTIONS
+      QUARKUS_HTTP_CORS_HEADERS: Content-Type,Authorization,Polaris-Realm,X-Request-ID
+      QUARKUS_HTTP_CORS_EXPOSED_HEADERS: "*"
+      QUARKUS_HTTP_CORS_ACCESS_CONTROL_ALLOW_CREDENTIALS: "true"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8182/q/health"]
       interval: 5s
@@ -89,6 +95,19 @@ services:
       timeout: 10s
       retries: 300
       start_period: 1s
+
+  polaris-console:
+    build: ./polaris-console
+    ports:
+      - "4000:4000"
+    environment:
+      VITE_POLARIS_API_URL: http://localhost:8181
+      VITE_POLARIS_REALM: POLARIS
+      VITE_POLARIS_PRINCIPAL_SCOPE: PRINCIPAL_ROLE:ALL
+      VITE_OAUTH_TOKEN_URL: http://localhost:8181/api/catalog/v1/oauth/tokens
+    depends_on:
+      polaris-setup:
+        condition: service_healthy
 
   trino:
     image: trinodb/trino:latest

@@ -73,6 +73,16 @@ como para analitica empresarial y BI.
 - **Credenciales root:** `root` / `s3cr3t` (uso interno para Trino)
 - **Credenciales usuario:** Auto-generadas al iniciar (para DuckDB)
 
+### Polaris Console (`apache/polaris-console:latest`)
+
+- **Rol:** Interfaz web para administrar Apache Polaris
+- **Que hace:** Permite gestionar catalogos, namespaces, tablas, vistas, principales,
+  roles y permisos de Polaris desde un navegador. Se autentica contra la API de Polaris
+  usando las mismas credenciales root.
+- **Puerto:** 4000
+- **URL:** http://localhost:4000
+- **Credenciales:** `root` / `s3cr3t` (Realm: `POLARIS`)
+
 ### DuckDB
 
 - **Rol:** Base de datos analitica embebida
@@ -118,8 +128,8 @@ como para analitica empresarial y BI.
 # 1. Clonar o copiar este proyecto
 cd local-lakehouse
 
-# 2. Iniciar todos los servicios
-docker compose up -d
+# 2. Construir e iniciar todos los servicios
+docker compose up -d --build
 
 # 3. Ver los logs de configuracion (esperar a que termine)
 docker compose logs -f polaris-setup
@@ -151,6 +161,7 @@ duckdb
 | Polaris REST | http://localhost:8181/api/catalog/v1    |
 | Polaris Mgmt | http://localhost:8181/api/management/v1 |
 | Floci S3     | http://localhost:4566                   |
+| Polaris Console | http://localhost:4000                |
 
 ## Credenciales
 
@@ -165,6 +176,15 @@ docker compose logs polaris-setup | grep -A2 "Credenciales"
 ```
 Client ID:     root
 Client Secret: s3cr3t
+```
+
+**Polaris Console (interfaz web de administracion):**
+
+```
+URL:           http://localhost:4000
+Client ID:     root
+Client Secret: s3cr3t
+Realm:         POLARIS
 ```
 
 **Usuario (para tus consultas desde DuckDB):**
