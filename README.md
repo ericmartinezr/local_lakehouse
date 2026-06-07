@@ -1,5 +1,9 @@
 # Lakehouse Local con Floci, Apache Iceberg, DuckDB y Trino
 
+## Reconocimiento
+
+Proyecto basado en el video [Apache Iceberg Tutorial: Build a Local Lakehouse From Scratch](https://www.youtube.com/watch?v=a-yQ_-xKaKQ) de [The Data and AI Guy](https://www.youtube.com/@thedataandaiguy)
+
 ## ¿Qué es un Lakehouse?
 
 Un **data lakehouse** combina la flexibilidad de un data lake (almacenamiento de datos en
